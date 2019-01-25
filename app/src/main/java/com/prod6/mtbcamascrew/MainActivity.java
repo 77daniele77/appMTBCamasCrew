@@ -4,18 +4,31 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.os.Handler;
+import android.os.Build;
+import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+import com.karumi.dexter.Dexter;
+import com.karumi.dexter.MultiplePermissionsReport;
+import com.karumi.dexter.PermissionToken;
+import com.karumi.dexter.listener.DexterError;
+import com.karumi.dexter.listener.PermissionRequest;
+import com.karumi.dexter.listener.PermissionRequestErrorListener;
+import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -24,28 +37,70 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapController;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
-import org.osmdroid.views.util.constants.MapViewConstants;
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements LocationListener {
     private MapView             mMapView       = null;
     private MapController       mMapController = null;
 
     private ArrayList<Point>    points         = null;
+    public boolean permissionChecked = false;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+        {
+            Dexter.withActivity(this)
+                    .withPermissions(
+                            Manifest.permission.INTERNET,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                    )
+                    .withListener(new MultiplePermissionsListener()
+                    {
+                        @Override
+                        public void onPermissionsChecked(MultiplePermissionsReport report)
+                        {
+                            if (report.areAllPermissionsGranted())
+                            {
+                                permissionChecked = true;
+                            } else
+                            {
+                                permissionChecked = false;
+                            }
+                        }
+
+
+                        @Override
+                        public void onPermissionRationaleShouldBeShown(List<PermissionRequest> permissions, PermissionToken token)
+                        {
+                            token.continuePermissionRequest();
+                        }
+
+
+                    }).onSameThread().withErrorListener(new PermissionRequestErrorListener()
+            {
+
+                @Override
+                public void onError(DexterError error)
+                {
+                    Log.e("XXXXX", error.toString());
+                }
+            }).check();
+        } else
+        {
+            permissionChecked = true;
+        }
+
+
 
         // ATTIVAZIONE GPS - INIZIO //
         if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -88,6 +143,17 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         GeoPoint gPt = new GeoPoint(51500000, -150000);
         this.mMapController.setCenter(gPt);
         // MAPPA - FINE   //
+    }
+
+
+    @Override
+    protected void onResume()
+    {
+        super.onResume();
+        if (!permissionChecked)
+            return;
+
+
     }
 
     private void reStartService() {
