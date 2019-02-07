@@ -11,6 +11,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
@@ -37,6 +38,10 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapController;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.views.overlay.ScaleBarOverlay;
+import org.osmdroid.views.overlay.compass.CompassOverlay;
+import org.osmdroid.views.overlay.compass.InternalCompassOrientationProvider;
+import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -136,13 +141,37 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         // MAPPA - INIZIO //
         this.mMapView = (MapView) findViewById(R.id.mapview);
         this.mMapView.setTileSource(TileSourceFactory.DEFAULT_TILE_SOURCE);
-        this.mMapView.setBuiltInZoomControls(true);
+//        this.mMapView.setBuiltInZoomControls(true);
+        //this.mMapView.setMultiTouchControls(true);
         this.mMapView.setTileSource(TileSourceFactory.CYCLEMAP);
         this.mMapController = (MapController) this.mMapView.getController();
         this.mMapController.setZoom(13);
         GeoPoint gPt = new GeoPoint(51500000, -150000);
         this.mMapController.setCenter(gPt);
+
+        if (Build.VERSION.SDK_INT >= 16)
+            mMapView.setHasTransientState(true);
+
+        RotationGestureOverlay mRotationGestureOverlay = new RotationGestureOverlay( mMapView);
+        mRotationGestureOverlay.setEnabled(true);
+        mMapView.setMultiTouchControls(true);
+        mMapView.getOverlays().add(mRotationGestureOverlay);
+
         // MAPPA - FINE   //
+
+        final Context context = this;
+        final DisplayMetrics dm = context.getResources().getDisplayMetrics();
+        ScaleBarOverlay  mScaleBarOverlay = new ScaleBarOverlay(mMapView);
+        mScaleBarOverlay.setCentred(true);
+//play around with these values to get the location on screen in the right place for your application
+        mScaleBarOverlay.setScaleBarOffset(dm.widthPixels / 2, 10);
+        mMapView.getOverlays().add(mScaleBarOverlay);
+
+
+        CompassOverlay mCompassOverlay = new CompassOverlay(context, new InternalCompassOrientationProvider(context), mMapView);
+        mCompassOverlay.enableCompass();
+        mMapView.getOverlays().add(mCompassOverlay);
+
     }
 
 
@@ -152,8 +181,21 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         super.onResume();
         if (!permissionChecked)
             return;
+        //this will refresh the osmdroid configuration on resuming.
+        //if you make changes to the configuration, use
+        //SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        //Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this));
+        //mMapView.onResume(); //needed for compass, my location overlays, v6.0.0 and up
 
+    }
 
+    public void onPause(){
+        super.onPause();
+        //this will refresh the osmdroid configuration on resuming.
+        //if you make changes to the configuration, use
+        //SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        //Configuration.getInstance().save(this, prefs);
+        //mMapView.onPause();  //needed for compass, my location overlays, v6.0.0 and up
     }
 
     private void reStartService() {
@@ -166,7 +208,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         GeoPoint gPt = null;
         Marker   m   = null;
 
-        this.mMapView.getOverlays().clear();
+        //this.mMapView.getOverlays().clear();
 
         for (Point point : this.points) {
             gPt = new GeoPoint(point.getLat(), point.getLon());
